@@ -13,6 +13,8 @@ jobs:
   backend-test:
     name: Backend Tests (Python)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: Semifinal/project/server（云端服务）
@@ -39,6 +41,8 @@ jobs:
   frontend-build:
     name: Frontend Build (React)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: "Semifinal/project/Distributed_Emergency_Response_System（可视化web端）"
@@ -65,6 +69,8 @@ jobs:
   docker-build:
     name: Docker Build (Server)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: backend-test
 
     steps:
