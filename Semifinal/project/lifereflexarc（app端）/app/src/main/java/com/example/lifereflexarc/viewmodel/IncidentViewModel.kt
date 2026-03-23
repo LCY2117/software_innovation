@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lifereflexarc.data.IncidentRepository
 import com.example.lifereflexarc.data.IncidentState
+import com.example.lifereflexarc.data.TokenResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,42 @@ class IncidentViewModel(
     private val _assignedRole = MutableStateFlow<String?>(null)
     val assignedRole: StateFlow<String?> = _assignedRole.asStateFlow()
     private val _userId = MutableStateFlow<String?>(null)
+    private val _authToken = MutableStateFlow<String?>(null)
+    val authToken: StateFlow<String?> = _authToken.asStateFlow()
+
+    // -----------------------------------------------------------------
+    // Auth
+    // -----------------------------------------------------------------
+
+    fun login(phone: String, code: String) {
+        viewModelScope.launch {
+            try {
+                _error.value = null
+                val token = repository.login(phone, code)
+                _authToken.value = token.accessToken
+                _userId.value = token.userId
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    fun sendSmsCode(phone: String, onCode: (String?) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                _error.value = null
+                val resp = repository.sendSmsCode(phone)
+                onCode(resp.devCode)
+            } catch (e: Exception) {
+                _error.value = e.message
+                onCode(null)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Incident
+    // -----------------------------------------------------------------
 
     fun connectCurrent(userId: String) {
         if (_connecting.value) {
@@ -135,6 +172,17 @@ class IncidentViewModel(
                 repository.trigger(id)
             } catch (e: Exception) {
                 _error.value = e.message
+            }
+        }
+    }
+
+    fun reportLocation(lat: Double, lng: Double) {
+        val userId = _userId.value ?: return
+        viewModelScope.launch {
+            try {
+                repository.reportLocation(lat, lng, userId)
+            } catch (_: Exception) {
+                // Location reporting is best-effort; don't show error to user
             }
         }
     }

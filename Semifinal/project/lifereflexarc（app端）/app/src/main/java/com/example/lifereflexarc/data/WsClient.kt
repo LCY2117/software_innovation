@@ -28,11 +28,13 @@ class WsClient(
 
     private var webSocket: WebSocket? = null
     private var incidentId: String? = null
+    private var authToken: String? = null
     private var reconnectAttempt = 0
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun connect(id: String) {
+    fun connect(id: String, token: String? = null) {
         incidentId = id
+        authToken = token
         reconnectAttempt = 0
         openSocket()
     }
@@ -45,8 +47,11 @@ class WsClient(
 
     private fun openSocket() {
         val id = incidentId ?: return
+        val urlBuilder = StringBuilder("$baseWsUrl?incidentId=$id")
+        authToken?.let { urlBuilder.append("&token=$it") }
+
         val request = Request.Builder()
-            .url("$baseWsUrl?incidentId=$id")
+            .url(urlBuilder.toString())
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -58,8 +63,12 @@ class WsClient(
             override fun onMessage(ws: WebSocket, text: String) {
                 try {
                     val message = gson.fromJson(text, WsMessage::class.java)
-                    if (message.type == "STATE" && message.payload != null) {
-                        latestState.value = message.payload
+                    when (message.type) {
+                        "STATE" -> if (message.payload != null) {
+                            latestState.value = message.payload
+                        }
+                        "PING" -> ws.send(gson.toJson(mapOf("type" to "PONG")))
+                        // PONG is a no-op
                     }
                 } catch (_: Exception) {
                     // ignore invalid payload

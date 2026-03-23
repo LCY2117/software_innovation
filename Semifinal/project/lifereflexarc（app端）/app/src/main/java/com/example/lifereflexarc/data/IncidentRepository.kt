@@ -29,12 +29,22 @@ class IncidentRepository(
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
 
+    // JWT access token – set after login
+    var accessToken: String? = null
+
     init {
         val logger = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
         val okHttp = OkHttpClient.Builder()
             .addInterceptor(logger)
+            .addInterceptor { chain ->
+                val req = chain.request()
+                val authed = accessToken?.let {
+                    req.newBuilder().header("Authorization", "Bearer $it").build()
+                } ?: req
+                chain.proceed(authed)
+            }
             .build()
 
         apiService = Retrofit.Builder()
@@ -54,24 +64,33 @@ class IncidentRepository(
         }
     }
 
+    // -----------------------------------------------------------------
+    // WebSocket
+    // -----------------------------------------------------------------
+
     fun connect(incidentId: String) {
-        wsClient.connect(incidentId)
+        wsClient.connect(incidentId, accessToken)
     }
 
     fun close() {
         wsClient.close()
     }
 
+    // -----------------------------------------------------------------
+    // Incident API (unwrap ApiResponse<T>)
+    // -----------------------------------------------------------------
+
     suspend fun getCurrentIncident(): IncidentState {
-        return apiService.getCurrentIncident()
+        return apiService.getCurrentIncident().requireData("getCurrentIncident")
     }
 
     suspend fun joinCurrentAuto(userId: String): AutoJoinResponse {
         return apiService.joinCurrentAuto(AutoJoinRequest(userId = userId))
+            .requireData("joinCurrentAuto")
     }
 
     suspend fun createIncident(): String {
-        return apiService.createIncident().incidentId
+        return apiService.createIncident().requireData("createIncident").incidentId
     }
 
     suspend fun join(incidentId: String, role: String, userId: String) {
@@ -93,4 +112,42 @@ class IncidentRepository(
     suspend fun trigger(incidentId: String) {
         apiService.triggerIncident(incidentId)
     }
+
+    // -----------------------------------------------------------------
+    // Auth API
+    // -----------------------------------------------------------------
+
+    suspend fun sendSmsCode(phone: String): SendCodeResponse {
+        return apiService.sendSmsCode(SendCodeRequest(phone = phone))
+            .requireData("sendSmsCode")
+    }
+
+    suspend fun login(phone: String, code: String): TokenResponse {
+        val resp = apiService.login(LoginRequest(phone = phone, code = code))
+            .requireData("login")
+        accessToken = resp.accessToken
+        return resp
+    }
+
+    suspend fun register(phone: String, code: String, name: String? = null): TokenResponse {
+        val resp = apiService.register(RegisterRequest(phone = phone, code = code, name = name))
+            .requireData("register")
+        accessToken = resp.accessToken
+        return resp
+    }
+
+    // -----------------------------------------------------------------
+    // Geo API
+    // -----------------------------------------------------------------
+
+    suspend fun reportLocation(lat: Double, lng: Double, userId: String) {
+        apiService.reportLocation(LocationUpdate(lat = lat, lng = lng, userId = userId))
+    }
 }
+
+/** Unwrap ApiResponse<T> and throw on non-zero code. */
+private fun <T> ApiResponse<T>.requireData(call: String): T {
+    if (!isOk) throw IllegalStateException("$call failed (code=$code): $msg")
+    return data ?: throw IllegalStateException("$call returned null data")
+}
+
