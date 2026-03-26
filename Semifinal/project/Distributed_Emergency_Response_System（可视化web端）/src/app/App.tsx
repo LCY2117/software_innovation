@@ -124,6 +124,109 @@ interface IncidentState {
   logs: { ts: number; msg: string }[];
 }
 
+interface ScenePoint {
+  key: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface LocationSnapshot {
+  userId: string;
+  role: string;
+  provider: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+  speedMetersPerSecond?: number | null;
+  bearingDegrees?: number | null;
+  updatedTs: number;
+  incidentId?: string | null;
+}
+
+interface RouteWaypoint {
+  latitude: number;
+  longitude: number;
+}
+
+interface RouteState {
+  userId: string;
+  role: string;
+  targetKey: string;
+  targetLabel: string;
+  distanceMeters: number;
+  etaSeconds: number;
+  polyline: RouteWaypoint[];
+  incidentId?: string;
+}
+
+interface LocationStatePayload {
+  incidentId: string;
+  scene: ScenePoint[];
+  locations: LocationSnapshot[];
+  routes: RouteState[];
+}
+
+interface HealthSnapshot {
+  userId: string;
+  source: string;
+  providerStatus: string;
+  heartRate?: number | null;
+  bloodOxygen?: number | null;
+  riskLevel: string;
+  alertType?: string | null;
+  incidentId?: string | null;
+  updatedTs: number;
+}
+
+interface HealthAlert {
+  userId: string;
+  alertType: string;
+  riskLevel: string;
+  message: string;
+  updatedTs: number;
+  incidentId?: string;
+}
+
+interface HealthStatePayload {
+  incidentId: string;
+  snapshots: HealthSnapshot[];
+  latestAlert?: HealthAlert | null;
+}
+
+function buildGeoBounds(scene: ScenePoint[], locations: LocationSnapshot[]) {
+  const allPoints = [...scene, ...locations];
+  if (allPoints.length === 0) {
+    return {
+      minLat: 22.5405,
+      maxLat: 22.5445,
+      minLng: 114.0558,
+      maxLng: 114.0592,
+    };
+  }
+  const latitudes = allPoints.map((point) => point.latitude);
+  const longitudes = allPoints.map((point) => point.longitude);
+  return {
+    minLat: Math.min(...latitudes) - 0.0006,
+    maxLat: Math.max(...latitudes) + 0.0006,
+    minLng: Math.min(...longitudes) - 0.0006,
+    maxLng: Math.max(...longitudes) + 0.0006,
+  };
+}
+
+function projectPoint(
+  latitude: number,
+  longitude: number,
+  bounds: ReturnType<typeof buildGeoBounds>,
+) {
+  const latSpan = Math.max(bounds.maxLat - bounds.minLat, 0.0001);
+  const lngSpan = Math.max(bounds.maxLng - bounds.minLng, 0.0001);
+  return {
+    x: ((longitude - bounds.minLng) / lngSpan) * 100,
+    y: 100 - ((latitude - bounds.minLat) / latSpan) * 100,
+  };
+}
+
 // --- Components ---
 
 // 1. Intro Screen
@@ -248,7 +351,19 @@ const DeviceSimulator = ({ role, children }: { role: RoleType, children: React.R
 };
 
 // 3. Cloud Brain Map Visualization
-const CloudMap = ({ phase }: { phase: ScenarioPhase }) => {
+const CloudMap = ({
+  phase,
+  locationPayload,
+}: {
+  phase: ScenarioPhase;
+  locationPayload: LocationStatePayload | null;
+}) => {
+  const scene = locationPayload?.scene ?? [];
+  const locations = locationPayload?.locations ?? [];
+  const routes = locationPayload?.routes ?? [];
+  const bounds = buildGeoBounds(scene, locations);
+  const patientPoint = scene.find((point) => point.key === 'PATIENT');
+
   return (
     <div className="w-full h-full bg-slate-950 relative overflow-hidden rounded-xl border border-slate-800 shadow-inner">
       {/* Grid Background */}
@@ -263,94 +378,103 @@ const CloudMap = ({ phase }: { phase: ScenarioPhase }) => {
         <div className="absolute inset-0 border-[20px] border-slate-900/30 rounded-lg clip-path-polygon"></div>
       </div>
 
-      {/* Victim Node */}
-      <motion.div 
-        className="absolute top-1/2 left-1/2 z-10"
-        animate={{ scale: phase === 'trigger' ? [1, 2, 1] : 1 }}
-        transition={{ repeat: Infinity, duration: 2 }}
-      >
-         <div className="w-4 h-4 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,1)] flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-         </div>
-         {phase !== 'intro' && (
-           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-950/90 text-red-200 text-[10px] px-2 py-1 rounded border border-red-800 whitespace-nowrap shadow-lg">
-             <span className="font-bold">SCA Event</span>
-             <span className="block text-[8px] opacity-70">Level 1 Critical</span>
-           </div>
-         )}
-      </motion.div>
+      {/* Dynamic Routes */}
+      {routes.map((route) => {
+        const points = route.polyline.map((point) => projectPoint(point.latitude, point.longitude, bounds));
+        return (
+          <svg key={`${route.userId}-${route.role}`} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polyline
+              points={points.map((point) => `${point.x},${point.y}`).join(' ')}
+              fill="none"
+              stroke={route.role === 'PRIME' ? '#22c55e' : route.role === 'RUNNER' ? '#3b82f6' : '#f59e0b'}
+              strokeWidth="3"
+              strokeDasharray="8 10"
+              opacity="0.9"
+            />
+          </svg>
+        );
+      })}
 
-      {/* Doctor Node */}
-      {phase !== 'intro' && (
-        <motion.div 
-          className="absolute z-10"
-          initial={{ top: '35%', left: '35%' }}
-          animate={
-            phase === 'action' || phase === 'convergence' || phase === 'handover' 
-            ? { top: '48%', left: '48%' } 
-            : { top: '35%', left: '35%' }
-          }
-          transition={{ duration: 4, ease: "easeInOut" }}
-        >
-          <div className="w-3 h-3 bg-green-500 rounded-full ring-4 ring-green-900/50"></div>
-          <div className="text-[10px] text-green-400 mt-2 font-mono bg-slate-900/80 px-1 rounded absolute whitespace-nowrap -translate-x-1/3">
-            张医生 (Prime)
-          </div>
-        </motion.div>
-      )}
+      {/* Scene Anchors */}
+      {scene.map((point) => {
+        const projected = projectPoint(point.latitude, point.longitude, bounds);
+        const isPatient = point.key === 'PATIENT';
+        return (
+          <motion.div
+            key={point.key}
+            className="absolute z-10"
+            style={{ left: `${projected.x}%`, top: `${projected.y}%`, transform: 'translate(-50%, -50%)' }}
+            animate={isPatient && phase === 'trigger' ? { scale: [1, 1.9, 1] } : { scale: 1 }}
+            transition={isPatient ? { repeat: Infinity, duration: 2 } : undefined}
+          >
+            <div className={cn(
+              'rounded-full flex items-center justify-center shadow-lg',
+              isPatient ? 'w-4 h-4 bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)]' : 'w-3 h-3 bg-slate-100 border border-slate-400'
+            )}>
+              {isPatient && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+            <div className={cn(
+              'mt-2 text-[10px] font-mono px-2 py-1 rounded absolute whitespace-nowrap -translate-x-1/2 left-1/2',
+              isPatient ? 'bg-red-950/90 text-red-200 border border-red-800' : 'bg-slate-900/80 text-slate-200 border border-slate-700'
+            )}>
+              {point.label}
+            </div>
+          </motion.div>
+        );
+      })}
 
-      {/* Student Node */}
-      {phase !== 'intro' && (
-        <motion.div 
-          className="absolute z-10"
-          initial={{ top: '25%', left: '75%' }}
-          animate={
-            phase === 'action' ? { top: '30%', left: '65%' } : 
-            phase === 'convergence' || phase === 'handover' ? { top: '48%', left: '52%' } : 
-            { top: '25%', left: '75%' }
-          }
-          transition={{ duration: phase === 'action' ? 2 : 4, ease: "easeInOut" }}
-        >
-          <div className="w-3 h-3 bg-blue-500 rounded-full ring-4 ring-blue-900/50"></div>
-          <div className="text-[10px] text-blue-400 mt-2 font-mono bg-slate-900/80 px-1 rounded absolute whitespace-nowrap -translate-x-1/2">
-            小李 (AED)
-          </div>
-        </motion.div>
-      )}
+      {/* Dynamic Responders */}
+      {locations.map((location) => {
+        const projected = projectPoint(location.latitude, location.longitude, bounds);
+        const route = routes.find((item) => item.userId === location.userId);
+        const color = location.role === 'PRIME' ? 'bg-green-500 ring-green-900/50 text-green-400' : location.role === 'RUNNER' ? 'bg-blue-500 ring-blue-900/50 text-blue-400' : 'bg-yellow-500 ring-yellow-900/50 text-yellow-400';
+        return (
+          <motion.div
+            key={`${location.userId}-${location.updatedTs}`}
+            className="absolute z-20"
+            style={{ left: `${projected.x}%`, top: `${projected.y}%`, transform: 'translate(-50%, -50%)' }}
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ repeat: Infinity, duration: 2.4 }}
+          >
+            <div className={cn('w-3 h-3 rounded-full ring-4', color.split(' ').slice(0, 2).join(' '))}></div>
+            <div className="mt-2 text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded absolute whitespace-nowrap -translate-x-1/2 left-1/2 text-slate-100 border border-slate-700">
+              {location.role} {route ? `· ${Math.round(route.distanceMeters)}m` : ''}
+            </div>
+          </motion.div>
+        );
+      })}
 
-      {/* Security Node */}
-      {phase !== 'intro' && (
-        <motion.div 
-          className="absolute top-[85%] left-[50%] -translate-x-1/2 z-10"
-        >
-          <div className="w-3 h-3 bg-yellow-500 rounded-full ring-4 ring-yellow-900/50"></div>
-          <div className="text-[10px] text-yellow-400 mt-2 font-mono bg-slate-900/80 px-1 rounded absolute whitespace-nowrap -translate-x-1/2">
-            保安老王 (Guide)
-          </div>
-        </motion.div>
-      )}
-
-       {/* Ambulance Node */}
-       {(phase === 'convergence' || phase === 'handover') && (
-        <motion.div 
-          className="absolute z-10"
-          initial={{ top: '100%', left: '50%' }}
-          animate={{ top: '85%', left: '50%' }}
-          transition={{ duration: 3, ease: "easeOut" }}
-        >
-          <div className="w-6 h-6 bg-slate-100 rounded-md flex items-center justify-center text-red-600 font-bold text-[8px] shadow-lg -translate-x-1/2 -translate-y-1/2">
-            <Ambulance size={12} />
-          </div>
-          <div className="text-[10px] text-white mt-1 font-mono bg-slate-900/80 px-1 rounded absolute whitespace-nowrap -translate-x-1/2">
-            120急救
-          </div>
-        </motion.div>
+      {/* Fallback Narrative Layer */}
+      {!locationPayload && (
+        <>
+          <motion.div 
+            className="absolute top-1/2 left-1/2 z-10"
+            animate={{ scale: phase === 'trigger' ? [1, 2, 1] : 1 }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+             <div className="w-4 h-4 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,1)] flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+             </div>
+             {phase !== 'intro' && (
+               <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-950/90 text-red-200 text-[10px] px-2 py-1 rounded border border-red-800 whitespace-nowrap shadow-lg">
+                 <span className="font-bold">SCA Event</span>
+                 <span className="block text-[8px] opacity-70">Level 1 Critical</span>
+               </div>
+             )}
+          </motion.div>
+        </>
       )}
 
       {/* Radar Scan Effect */}
-      {phase === 'trigger' && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-red-500/20 bg-red-500/5 animate-ping pointer-events-none"></div>
-      )}
+      {phase === 'trigger' && patientPoint && (() => {
+        const projected = projectPoint(patientPoint.latitude, patientPoint.longitude, bounds);
+        return (
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-red-500/20 bg-red-500/5 animate-ping pointer-events-none"
+            style={{ left: `${projected.x}%`, top: `${projected.y}%` }}
+          ></div>
+        );
+      })()}
     </div>
   );
 };
@@ -381,6 +505,9 @@ export default function App() {
     return new URLSearchParams(window.location.search).get('incidentId');
   });
   const [incidentState, setIncidentState] = useState<IncidentState | null>(null);
+  const [locationPayload, setLocationPayload] = useState<LocationStatePayload | null>(null);
+  const [healthPayload, setHealthPayload] = useState<HealthStatePayload | null>(null);
+  const [latestHealthAlert, setLatestHealthAlert] = useState<HealthAlert | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -422,6 +549,10 @@ export default function App() {
   const actionsDisabled = !incidentState;
   const actionDisabledTitle = actionsDisabled ? '等待服务端状态同步' : undefined;
   const incidentStartTs = incidentState?.logs?.[0]?.ts ?? null;
+  const latestSnapshot = [...(healthPayload?.snapshots ?? [])].sort((a, b) => b.updatedTs - a.updatedTs)[0] ?? null;
+  const primeRoute = locationPayload?.routes.find((route) => route.role === 'PRIME') ?? null;
+  const runnerRoute = locationPayload?.routes.find((route) => route.role === 'RUNNER') ?? null;
+  const activeAlert = latestHealthAlert ?? healthPayload?.latestAlert ?? null;
 
   // Auto-scroll logs
   useEffect(() => {
@@ -507,6 +638,14 @@ export default function App() {
         const msg = JSON.parse(event.data);
         if (msg?.type === 'STATE') {
           setIncidentState(msg.payload as IncidentState);
+        } else if (msg?.type === 'LOCATION_STATE') {
+          setLocationPayload(msg.payload as LocationStatePayload);
+        } else if (msg?.type === 'HEALTH_STATE') {
+          const payload = msg.payload as HealthStatePayload;
+          setHealthPayload(payload);
+          setLatestHealthAlert(payload.latestAlert ?? null);
+        } else if (msg?.type === 'HEALTH_ALERT') {
+          setLatestHealthAlert(msg.payload as HealthAlert);
         } else if (msg?.type === 'ERROR') {
           setWsError(String(msg.payload ?? 'WebSocket error'));
         }
@@ -1252,11 +1391,39 @@ export default function App() {
                 </div>
              </div>
              <div className="bg-slate-800/80 p-4 rounded-lg border border-slate-700/50">
-                <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Ambulance ETA</div>
+                <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Prime ETA</div>
                 <div className="text-white font-bold flex items-center font-mono">
-                  <Ambulance size={16} className="mr-2" /> {incidentState ? 'LIVE' : '--'}
+                  <Ambulance size={16} className="mr-2" /> {primeRoute ? `${Math.floor(primeRoute.etaSeconds / 60)}m ${primeRoute.etaSeconds % 60}s` : '--'}
                 </div>
              </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60">
+              <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Health Feed</div>
+              <div className="text-green-300 font-bold flex items-center">
+                <Heart size={16} className="mr-2" /> HR {latestSnapshot?.heartRate ?? '--'} / SpO2 {latestSnapshot?.bloodOxygen ?? '--'}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2">
+                Source: {latestSnapshot?.source ?? '--'} | Risk: {latestSnapshot?.riskLevel ?? '--'}
+              </div>
+            </div>
+            <div className="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60">
+              <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Prime Route</div>
+              <div className="text-blue-300 font-bold flex items-center">
+                <Navigation size={16} className="mr-2" /> {primeRoute ? `${Math.round(primeRoute.distanceMeters)}m -> ${primeRoute.targetLabel}` : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2">ETA: {primeRoute ? `${Math.floor(primeRoute.etaSeconds / 60)}m ${primeRoute.etaSeconds % 60}s` : '--'}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Runner: {runnerRoute ? `${Math.round(runnerRoute.distanceMeters)}m -> ${runnerRoute.targetLabel}` : '--'}</div>
+            </div>
+            <div className="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60">
+              <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Latest Alert</div>
+              <div className="text-yellow-300 font-bold flex items-center">
+                <Radio size={16} className="mr-2" /> {activeAlert?.alertType ?? 'No alert'}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2">
+                {activeAlert ? `${activeAlert.riskLevel} · ${new Date(activeAlert.updatedTs).toLocaleTimeString('zh-CN', { hour12: false })}` : 'Waiting for health event'}
+              </div>
+            </div>
           </div>
           <div className="text-xs text-slate-400">
             ServerPhase: {incidentState?.phase ?? '--'} | ScenarioPhase: {phase} | PRIME: {incidentState?.roles?.PRIME?.status ?? '--'}
@@ -1311,7 +1478,7 @@ export default function App() {
           {/* Map Visualization */}
           <div className="flex-1 min-h-[300px] flex flex-col">
             <div className="text-[10px] text-slate-500 uppercase mb-2 font-bold tracking-wider">Real-time Topography</div>
-            <CloudMap phase={phase} />
+            <CloudMap phase={phase} locationPayload={locationPayload} />
           </div>
 
           {/* Live Logs */}
