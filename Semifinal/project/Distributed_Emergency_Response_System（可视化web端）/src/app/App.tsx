@@ -483,9 +483,13 @@ const CloudMap = ({
 
 export default function App() {
   const DEFAULT_HOST = '111.230.52.99:8080';
+  // Support VITE_API_BASE_URL env var; fall back to the default host
   const getApiBase = () => {
     if (typeof window === 'undefined') {
-      return `http://${DEFAULT_HOST}`;
+      return import.meta.env.VITE_API_BASE_URL ?? `http://${DEFAULT_HOST}`;
+    }
+    if (import.meta.env.VITE_API_BASE_URL) {
+      return import.meta.env.VITE_API_BASE_URL as string;
     }
     const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
     return `${protocol}://${DEFAULT_HOST}`;
@@ -494,8 +498,18 @@ export default function App() {
     if (typeof window === 'undefined') {
       return `ws://${DEFAULT_HOST}/ws`;
     }
+    if (import.meta.env.VITE_API_BASE_URL) {
+      const base = import.meta.env.VITE_API_BASE_URL as string;
+      return base.replace(/^https?/, (p) => (p === 'https' ? 'wss' : 'ws')) + '/ws';
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     return `${protocol}://${DEFAULT_HOST}/ws`;
+  };
+  // Unwrap unified API response envelope {code, msg, data, traceId}
+  const unwrap = <T,>(body: { code: number; msg: string; data: T }): T => {
+    if (body.code !== 0) throw new Error(body.msg || 'API error');
+    if (body.data === null || body.data === undefined) throw new Error('Missing data in response');
+    return body.data;
   };
 
   const [incidentId, setIncidentId] = useState<string | null>(() => {
@@ -648,6 +662,8 @@ export default function App() {
           setLatestHealthAlert(msg.payload as HealthAlert);
         } else if (msg?.type === 'ERROR') {
           setWsError(String(msg.payload ?? 'WebSocket error'));
+        } else if (msg?.type === 'PING') {
+          ws.send(JSON.stringify({ type: 'PONG' }));
         }
       } catch {
         setWsError('Invalid WebSocket message');
@@ -675,11 +691,12 @@ export default function App() {
   const createIncident = async () => {
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents`, { method: 'POST' });
+      const res = await fetch(`${getApiBase()}/api/v1/incidents`, { method: 'POST' });
       if (!res.ok) {
         throw new Error(`Create incident failed (${res.status})`);
       }
-      const data = await res.json();
+      const body = await res.json();
+      const data = unwrap(body);
     if (data?.incidentId) {
       setIncidentId(data.incidentId);
       setActiveRole('doctor');
@@ -698,14 +715,15 @@ export default function App() {
   const loadCurrentIncident = async () => {
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/current`);
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/current`);
       if (!res.ok) {
         throw new Error(`Load current incident failed (${res.status})`);
       }
-      const data = await res.json();
+      const body = await res.json();
+      const data = unwrap(body) as IncidentState;
       if (data?.incidentId) {
         setIncidentId(data.incidentId);
-        setIncidentState(data as IncidentState);
+        setIncidentState(data);
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
           url.searchParams.set('incidentId', data.incidentId);
@@ -720,13 +738,14 @@ export default function App() {
   const resetCurrentIncident = async () => {
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/current/reset`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/current/reset`, {
         method: 'POST',
       });
       if (!res.ok) {
         throw new Error(`Reset incident failed (${res.status})`);
       }
-      const data = await res.json();
+      const body = await res.json();
+      const data = unwrap(body) as IncidentState;
       if (data?.incidentId) {
         setIncidentId(data.incidentId);
         triggerRequestedRef.current = false;
@@ -742,7 +761,7 @@ export default function App() {
     }
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/${incidentId}/join`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/${incidentId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, userId: `${clientId}-${role.toLowerCase()}` }),
@@ -761,7 +780,7 @@ export default function App() {
     }
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/${incidentId}/actions`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/${incidentId}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, userId: `${clientId}-${activeRole}` }),
@@ -780,7 +799,7 @@ export default function App() {
     }
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/${incidentId}/trigger`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/${incidentId}/trigger`, {
         method: 'POST',
       });
       if (!res.ok) {
@@ -797,7 +816,7 @@ export default function App() {
     }
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/${incidentId}/sos_start`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/${incidentId}/sos_start`, {
         method: 'POST',
       });
       if (!res.ok) {
@@ -814,7 +833,7 @@ export default function App() {
     }
     try {
       setErrorMessage(null);
-      const res = await fetch(`${getApiBase()}/incidents/${incidentId}/sos_cancel`, {
+      const res = await fetch(`${getApiBase()}/api/v1/incidents/${incidentId}/sos_cancel`, {
         method: 'POST',
       });
       if (!res.ok) {

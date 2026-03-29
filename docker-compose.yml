@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: lifereflexarc
+      POSTGRES_USER: lra
+      POSTGRES_PASSWORD: lra_dev_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lra -d lifereflexarc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ./Semifinal/project/server（云端服务）
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lra:lra_dev_pass@postgres/lifereflexarc
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: docker-dev-secret-change-in-production
+      DEBUG: "false"
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web-dashboard:
+    build:
+      context: ./Semifinal/project/Distributed_Emergency_Response_System（可视化web端）
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  pg_data:
