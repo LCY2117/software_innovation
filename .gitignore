@@ -1,0 +1,167 @@
+# ===========================================
+# 基础通用配置
+# ===========================================
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ===========================================
+# Python 后端服务
+# ===========================================
+
+# 虚拟环境
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# ===========================================
+# 前端 Web (React + Vite + TypeScript)
+# ===========================================
+
+# 依赖
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 构建产物
+dist/
+dist-ssr/
+build/
+
+# 日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 本地环境变量
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 编辑器目录和文件
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===========================================
+# Android App 端 (Gradle + Kotlin)
+# ===========================================
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# 本地配置文件
+local.properties
+
+# 日志文件
+*.log
+
+# 签名文件
+*.jks
+*.keystore
+*.pk12
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+captures/
+.externalNativeBuild
+.cxx/
+local.properties
+
+# ProGuard
+proguard-rules.pro
+
+# lint
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# ===========================================
+# 项目特定文件
+# ===========================================
+
+# 数据目录
+data/
+*.csv
+
+# 测试输出
+test-results/
