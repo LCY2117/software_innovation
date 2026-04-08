@@ -6,7 +6,11 @@ data class IncidentState(
     val sos: SosState? = null,
     val roles: RoleStates,
     val logs: List<LogEntry>,
+    val patientUserId: String? = null,
+    val dispatchSource: String? = null,
 )
+
+fun IncidentState.isArchived(): Boolean = phase == "ARCHIVED"
 
 data class SosState(
     val status: String,
@@ -52,6 +56,16 @@ data class AutoJoinResponse(
     val ok: Boolean,
     val incidentId: String,
     val role: String,
+)
+
+data class ClientRegisterRequest(
+    val userId: String,
+    val displayName: String,
+    val organization: String,
+    val healthCondition: String,
+    val professionIdentity: String,
+    val profileBio: String,
+    val deviceType: String = "ANDROID",
 )
 
 data class WsMessage(

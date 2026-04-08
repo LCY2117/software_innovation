@@ -105,8 +105,8 @@ fun GuideTaskScreen(onAmbulanceArrived: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("3KM", color = PhoneColors.GrayText, fontSize = 11.sp)
-                    Text("ARRIVING", color = PhoneColors.GrayText, fontSize = 11.sp)
+                    Text("3 公里", color = PhoneColors.GrayText, fontSize = 11.sp)
+                    Text("到达中", color = PhoneColors.GrayText, fontSize = 11.sp)
                 }
             }
         }

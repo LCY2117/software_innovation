@@ -60,7 +60,7 @@ fun CreatedMonitoringScreen(onConfirm: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "HEALTH GUARD",
+                "健康守护",
                 color = PhoneColors.GrayText,
                 fontSize = PhoneTokens.Caption,
                 fontWeight = FontWeight.Bold

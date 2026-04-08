@@ -41,11 +41,11 @@ fun RunnerIdleScreen(onJoin: () -> Unit) {
             Spacer(modifier = Modifier.height(22.dp))
             Text("资源保障任务", color = PhoneColors.White, fontSize = PhoneTokens.Title, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(6.dp))
-            Text("当前状态: IDLE", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
+            Text("当前状态：待命", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
         }
 
         PressableButton(
-            text = "立即响应 (RUNNER)",
+            text = "立即响应（AED保障）",
             onClick = onJoin,
             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = PhoneColors.Blue)
         )

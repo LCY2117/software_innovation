@@ -28,10 +28,12 @@ class IncidentRepository(
 
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
+    private val _latestError = MutableStateFlow<String?>(null)
+    val latestError: StateFlow<String?> = _latestError.asStateFlow()
 
     init {
         val logger = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = HttpLoggingInterceptor.Level.NONE
         }
         val okHttp = OkHttpClient.Builder()
             .addInterceptor(logger)
@@ -52,6 +54,9 @@ class IncidentRepository(
         scope.launch {
             wsClient.latestState.collect { value -> _state.value = value }
         }
+        scope.launch {
+            wsClient.latestError.collect { value -> _latestError.value = value }
+        }
     }
 
     fun connect(incidentId: String) {
@@ -62,8 +67,19 @@ class IncidentRepository(
         wsClient.close()
     }
 
+    fun clearLocalState() {
+        wsClient.close()
+        _connected.value = false
+        _latestError.value = null
+        _state.value = null
+    }
+
     suspend fun getCurrentIncident(): IncidentState {
         return apiService.getCurrentIncident()
+    }
+
+    suspend fun getIncident(incidentId: String): IncidentState {
+        return apiService.getIncident(incidentId)
     }
 
     suspend fun joinCurrentAuto(userId: String): AutoJoinResponse {
@@ -72,6 +88,28 @@ class IncidentRepository(
 
     suspend fun createIncident(): String {
         return apiService.createIncident().incidentId
+    }
+
+    suspend fun registerClient(
+        authToken: String?,
+        userId: String,
+        displayName: String,
+        organization: String,
+        healthCondition: String,
+        professionIdentity: String,
+        profileBio: String,
+    ) {
+        apiService.registerClient(
+            authorization = authToken?.let { "Bearer $it" },
+            ClientRegisterRequest(
+                userId = userId,
+                displayName = displayName,
+                organization = organization,
+                healthCondition = healthCondition,
+                professionIdentity = professionIdentity,
+                profileBio = profileBio,
+            )
+        )
     }
 
     suspend fun join(incidentId: String, role: String, userId: String) {

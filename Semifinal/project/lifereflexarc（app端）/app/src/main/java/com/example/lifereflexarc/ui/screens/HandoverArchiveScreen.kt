@@ -79,7 +79,7 @@ fun HandoverArchiveScreen() {
                     Text("📄", fontSize = 20.sp)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("NFC 一碰传", color = PhoneColors.Navy, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("NFC 触碰传输", color = PhoneColors.Navy, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text("靠近急救员终端传输日志", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
             }
         }
@@ -103,7 +103,7 @@ fun HandoverArchiveScreen() {
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("AED使用", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
-                Text("成功 (1次)", color = PhoneColors.Green, fontSize = PhoneTokens.Body, fontWeight = FontWeight.Bold)
+                Text("成功（1 次）", color = PhoneColors.Green, fontSize = PhoneTokens.Body, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -1,7 +1,7 @@
 package com.example.lifereflexarc
 
+import android.content.Context
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,9 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.lifereflexarc.ui.PhoneAppRoot
+import com.example.lifereflexarc.ui.AppRoot
 import com.example.lifereflexarc.ui.theme.LifeReflexArcTheme
 import com.example.lifereflexarc.viewmodel.IncidentViewModel
+import com.example.lifereflexarc.viewmodel.SessionViewModel
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -37,11 +38,14 @@ class MainActivity : ComponentActivity() {
 fun DemoApp(modifier: Modifier = Modifier, vm: IncidentViewModel = viewModel()) {
     val context = LocalContext.current
     val userId = remember {
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            ?: UUID.randomUUID().toString()
+        getOrCreateTerminalId(context)
     }
     androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
-        PhoneAppRoot(viewModel = vm, userId = userId)
+        AppRoot(
+            incidentViewModel = vm,
+            sessionViewModel = viewModel<SessionViewModel>(),
+            deviceUserId = userId,
+        )
     }
 }
 
@@ -52,3 +56,17 @@ fun AppPreview() {
         DemoApp()
     }
 }
+
+private fun getOrCreateTerminalId(context: Context): String {
+    val prefs = context.getSharedPreferences("lra_terminal_identity", Context.MODE_PRIVATE)
+    val existing = prefs.getString(KEY_TERMINAL_ID, null)
+    if (!existing.isNullOrBlank()) {
+        return existing
+    }
+
+    val generated = "terminal-${UUID.randomUUID()}"
+    prefs.edit().putString(KEY_TERMINAL_ID, generated).apply()
+    return generated
+}
+
+private const val KEY_TERMINAL_ID = "terminal_id"

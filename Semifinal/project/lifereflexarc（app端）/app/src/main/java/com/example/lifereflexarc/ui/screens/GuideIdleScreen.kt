@@ -42,11 +42,11 @@ fun GuideIdleScreen(onJoin: () -> Unit) {
             Spacer(modifier = Modifier.height(22.dp))
             Text("环境清障任务", color = PhoneColors.White, fontSize = PhoneTokens.Title, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(6.dp))
-            Text("当前状态: IDLE", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
+            Text("当前状态：待命", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
         }
 
         PressableButton(
-            text = "立即响应 (GUIDE)",
+            text = "立即响应（环境清障）",
             onClick = onJoin,
             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = PhoneColors.Yellow)
         )

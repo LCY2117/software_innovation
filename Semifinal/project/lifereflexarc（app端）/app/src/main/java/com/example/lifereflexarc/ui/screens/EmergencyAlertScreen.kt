@@ -42,7 +42,7 @@ fun EmergencyAlertScreen(
                     .background(PhoneColors.Red, RoundedCornerShape(PhoneTokens.CardRadiusLg))
                     .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
-                Text("一级危急 (SCA)", color = PhoneColors.RedSoft, fontSize = PhoneTokens.Body, fontWeight = FontWeight.SemiBold)
+                Text("一级危急（SCA）", color = PhoneColors.RedSoft, fontSize = PhoneTokens.Body, fontWeight = FontWeight.SemiBold)
                 Text("ID: $incidentId", color = PhoneColors.RedSoft, fontSize = 10.sp)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("附近有人\n心脏骤停", color = Color.White, fontSize = PhoneTokens.TitleXL, fontWeight = FontWeight.Bold)
@@ -59,7 +59,7 @@ fun EmergencyAlertScreen(
                     .background(PhoneColors.Navy, RoundedCornerShape(PhoneTokens.CardRadiusMd))
                     .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
-                Text("GOLDEN RESCUE TIME", color = PhoneColors.GrayText, fontSize = 11.sp)
+                Text("黄金救援时间", color = PhoneColors.GrayText, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text("3:30", color = Color(0xFFFACC15), fontSize = 52.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))

@@ -1,16 +1,38 @@
 package com.example.lifereflexarc.data
 
+import retrofit2.http.Header
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface ApiService {
+    @POST("/auth/register")
+    suspend fun register(
+        @Body body: AuthRegisterRequest,
+    ): AuthResponse
+
+    @POST("/auth/login")
+    suspend fun login(
+        @Body body: AuthLoginRequest,
+    ): AuthResponse
+
     @POST("/incidents")
     suspend fun createIncident(): CreateIncidentResponse
 
+    @POST("/clients/register")
+    suspend fun registerClient(
+        @Header("Authorization") authorization: String?,
+        @Body body: ClientRegisterRequest,
+    )
+
     @GET("/incidents/current")
     suspend fun getCurrentIncident(): IncidentState
+
+    @GET("/incidents/{id}")
+    suspend fun getIncident(
+        @Path("id") incidentId: String,
+    ): IncidentState
 
     @POST("/incidents/current/join_auto")
     suspend fun joinCurrentAuto(

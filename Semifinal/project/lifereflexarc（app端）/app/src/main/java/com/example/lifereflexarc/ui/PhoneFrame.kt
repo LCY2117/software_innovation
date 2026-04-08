@@ -42,7 +42,7 @@ fun PhoneFrame(
         ) {
             StatusLight(isConnected = connected)
             Text(
-                text = if (connected) "Live Sync" else "Offline",
+                text = if (connected) "实时同步" else "离线",
                 color = PhoneColors.GrayText,
                 fontSize = 12.sp
             )
@@ -51,7 +51,7 @@ fun PhoneFrame(
         Spacer(modifier = Modifier.width(8.dp))
 
         Text(
-            text = if (incidentId != null) "INCIDENT: ${incidentId.take(8)}" else "INCIDENT: --",
+            text = if (incidentId != null) "事件：${incidentId.take(8)}" else "事件：--",
             color = if (incidentId != null) PhoneColors.White else PhoneColors.GrayText,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,

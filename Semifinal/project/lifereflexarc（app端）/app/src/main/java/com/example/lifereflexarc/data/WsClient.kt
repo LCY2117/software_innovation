@@ -1,6 +1,7 @@
 package com.example.lifereflexarc.data
 
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,6 +22,7 @@ class WsClient(
 ) {
     val connected = MutableStateFlow(false)
     val latestState = MutableStateFlow<IncidentState?>(null)
+    val latestError = MutableStateFlow<String?>(null)
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -29,15 +31,23 @@ class WsClient(
     private var webSocket: WebSocket? = null
     private var incidentId: String? = null
     private var reconnectAttempt = 0
+    private var manualClose = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun connect(id: String) {
+        manualClose = true
+        webSocket?.close(1000, "switching incident")
+        webSocket = null
         incidentId = id
         reconnectAttempt = 0
+        latestError.value = null
+        manualClose = false
         openSocket()
     }
 
     fun close() {
+        manualClose = true
+        incidentId = null
         webSocket?.close(1000, "closed")
         webSocket = null
         connected.value = false
@@ -50,30 +60,40 @@ class WsClient(
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(ws: WebSocket, response: Response) {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected.value = true
                 reconnectAttempt = 0
+                latestError.value = null
             }
 
-            override fun onMessage(ws: WebSocket, text: String) {
+            override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
-                    val message = gson.fromJson(text, WsMessage::class.java)
-                    if (message.type == "STATE" && message.payload != null) {
-                        latestState.value = message.payload
+                    val envelope = JsonParser.parseString(text).asJsonObject
+                    val type = envelope.get("type")?.asString.orEmpty()
+                    if (type == "STATE" && envelope.has("payload")) {
+                        latestState.value = gson.fromJson(envelope.get("payload"), IncidentState::class.java)
+                        latestError.value = null
+                    } else if (type == "ERROR") {
+                        latestError.value = envelope.get("payload")?.asString ?: "Server error"
                     }
-                } catch (_: Exception) {
-                    // ignore invalid payload
+                } catch (e: Exception) {
+                    latestError.value = e.message ?: "Invalid websocket payload"
                 }
             }
 
-            override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 connected.value = false
-                scheduleReconnect()
+                if (!manualClose) {
+                    scheduleReconnect()
+                }
             }
 
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 connected.value = false
-                scheduleReconnect()
+                latestError.value = t.message ?: "WebSocket connection failed"
+                if (!manualClose) {
+                    scheduleReconnect()
+                }
             }
         })
     }

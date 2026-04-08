@@ -25,10 +25,11 @@ import java.util.Locale
 fun LogsPanel(logs: List<LogEntry>) {
     val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     val listState = rememberLazyListState()
+    val visibleLogs = logs.takeLast(40)
 
-    LaunchedEffect(logs.size) {
-        if (logs.isNotEmpty()) {
-            listState.animateScrollToItem(logs.size - 1)
+    LaunchedEffect(visibleLogs.size) {
+        if (visibleLogs.isNotEmpty()) {
+            listState.scrollToItem(visibleLogs.lastIndex)
         }
     }
 
@@ -42,11 +43,11 @@ fun LogsPanel(logs: List<LogEntry>) {
     ) {
         Text("SYSTEM LOGS", color = Color(0xFF94A3B8), fontSize = 10.sp)
         LazyColumn(modifier = Modifier.heightIn(max = 160.dp), state = listState) {
-            items(logs) { log ->
+            items(visibleLogs) { log ->
                 val time = formatter.format(Date(log.ts))
                 Text("$time  ${log.msg}", color = Color(0xFFE2E8F0), fontSize = 11.sp)
             }
-            if (logs.isEmpty()) {
+            if (visibleLogs.isEmpty()) {
                 item { Text("Waiting for event...", color = Color(0xFF64748B), fontSize = 11.sp) }
             }
         }

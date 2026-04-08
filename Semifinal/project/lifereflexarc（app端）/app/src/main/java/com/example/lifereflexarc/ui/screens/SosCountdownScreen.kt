@@ -68,7 +68,7 @@ fun SosCountdownScreen(seconds: Int, totalSeconds: Int, onCancel: () -> Unit) {
                 )
             }
             Text("${seconds.coerceAtLeast(0)}", color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
-            Text("SOS ALERT", color = Color(0xFFEF4444), fontSize = PhoneTokens.Body)
+            Text("SOS 告警", color = Color(0xFFEF4444), fontSize = PhoneTokens.Body)
             Spacer(modifier = Modifier.height(8.dp))
             Text("检测到异常倒地\n即将自动呼叫急救", color = PhoneColors.GrayText, fontSize = PhoneTokens.Body)
         }

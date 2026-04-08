@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.lifereflexarc.ui.components.LogsPanel
 import com.example.lifereflexarc.ui.components.StatusLight
 import com.example.lifereflexarc.ui.screens.AedDeliveryScreen
+import com.example.lifereflexarc.ui.screens.ConnectScreen
 import com.example.lifereflexarc.ui.screens.CreatedMonitoringScreen
 import com.example.lifereflexarc.ui.screens.CprMetronomeScreen
 import com.example.lifereflexarc.ui.screens.EmergencyAlertScreen
@@ -47,12 +48,6 @@ fun PhoneAppRoot(viewModel: IncidentViewModel, userId: String, role: Role = Role
     val incidentId = incidentState?.incidentId
     val phase = incidentState?.phase
     val sos = incidentState?.sos
-
-    LaunchedEffect(incidentState, connected, connecting, userId) {
-        if (incidentState == null && !connected && !connecting) {
-            viewModel.connectCurrent(userId)
-        }
-    }
 
     val countdown = remember(incidentId) { mutableStateOf(7) }
     val cancelRequested = remember(incidentId) { mutableStateOf(false) }
@@ -110,7 +105,7 @@ fun PhoneAppRoot(viewModel: IncidentViewModel, userId: String, role: Role = Role
             StatusLight(isConnected = connected)
             Spacer(modifier = Modifier.width(0.dp))
             Text(
-                text = if (connected) "Connected" else "Reconnecting",
+                text = if (connected) "已连接" else "重新连接中",
                 color = PhoneColors.GrayText,
                 modifier = Modifier.padding(start = 8.dp)
             )
@@ -123,15 +118,38 @@ fun PhoneAppRoot(viewModel: IncidentViewModel, userId: String, role: Role = Role
             contentAlignment = Alignment.Center
         ) {
             if (incidentState == null) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = if (connecting) "Connecting..." else "Waiting for server...",
-                        color = PhoneColors.GrayText
-                    )
-                    if (error != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = error ?: "", color = PhoneColors.Red)
+                if (connecting) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                                text = "正在连接...",
+                            color = PhoneColors.GrayText
+                        )
+                        if (error != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = error ?: "", color = PhoneColors.Red)
+                        }
                     }
+                } else {
+                    ConnectScreen(
+                        onConnect = {
+                            viewModel.clearError()
+                            viewModel.connect(it)
+                        },
+                        onOpenCurrent = {
+                            viewModel.clearError()
+                            viewModel.connectCurrent(userId, autoJoin = false)
+                        },
+                        onAutoJoinCurrent = {
+                            viewModel.clearError()
+                            viewModel.connectCurrent(userId, autoJoin = true)
+                        },
+                        onCreateIncident = {
+                            viewModel.clearError()
+                            viewModel.createIncident()
+                        },
+                        title = "选择进入方式",
+                        message = error
+                    )
                 }
             } else {
                 when (screenFor(incidentState!!, resolvedRole)) {

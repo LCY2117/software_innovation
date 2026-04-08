@@ -100,7 +100,7 @@ fun AedDeliveryScreen(
                         drawCircle(color = Color.White, radius = 6f, center = Offset(size.width * 0.78f, size.height * 0.22f))
                     }
                     Text(
-                        "MAP VIEW",
+                        "现场地图",
                         color = PhoneColors.GrayText.copy(alpha = 0.4f),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
@@ -127,7 +127,7 @@ fun AedDeliveryScreen(
             ) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Column {
-                        Text("STATUS", color = PhoneColors.GrayText, fontSize = PhoneTokens.Caption)
+                        Text("状态", color = PhoneColors.GrayText, fontSize = PhoneTokens.Caption)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = when {
@@ -142,7 +142,7 @@ fun AedDeliveryScreen(
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text("30s", color = PhoneColors.Blue, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text("ETA", color = PhoneColors.GrayText, fontSize = PhoneTokens.Caption)
+                        Text("预计到达", color = PhoneColors.GrayText, fontSize = PhoneTokens.Caption)
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
